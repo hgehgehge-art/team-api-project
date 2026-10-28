@@ -183,13 +183,7 @@ export default function Home() {
               recommendedPlaces={results}
             />
 
-            {/* 🎒 1일 완성 당일치기 코스 자동 플래너 (초격차 킬러 솔루션) */}
-            <DayCoursePlanner
-              filters={filters}
-              places={results}
-            />
-
-            {/* 1위는 크게, 2·3위는 나란히, 4위부터는 목록형 */}
+            {/* 1위는 크게, 2·3위는 나란히, 4위부터는 목록형 (먼저 시원하게 노출) */}
             <div className="grid gap-4 sm:grid-cols-2">
               {results.slice(0, 3).map((p, i) => (
                 <PlaceCard key={p.id} place={p} rank={i + 1} />
@@ -204,6 +198,12 @@ export default function Home() {
                 ))}
               </div>
             )}
+
+            {/* 🎒 1일 완성 당일치기 코스 자동 플래너 (맨 아래로 이동 + 접이식 아코디언 지원) */}
+            <DayCoursePlanner
+              filters={filters}
+              places={results}
+            />
 
             <p className="text-xs text-black/50 dark:text-white/50">
               추천은 서비스 자체 규칙에 따른 것이며, 실제 혼잡도나 단체 수용 가능 여부를 보장하지 않습니다.
