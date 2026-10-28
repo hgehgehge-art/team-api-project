@@ -6,7 +6,7 @@ import PlaceCard from "@/components/PlaceCard";
 import DataInsights from "@/components/DataInsights";
 import DayCoursePlanner from "@/components/DayCoursePlanner";
 import { recommendPlaces } from "@/lib/recommend";
-import type { Companion, Environment, Filters, Place, RecommendedPlace } from "@/lib/types";
+import type { Companion, DiscoveryMode, Environment, Filters, Place, RecommendedPlace } from "@/lib/types";
 
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -22,6 +22,7 @@ export default function Home() {
     companion: "friends",
     people: 4,
     environment: "all",
+    discoveryMode: "popular",
   });
   const [status, setStatus] = useState<Status>("idle");
   const [results, setResults] = useState<RecommendedPlace[]>([]);
@@ -69,13 +70,15 @@ export default function Home() {
     const companion = params.get("companion") as Companion | null;
     const people = Number(params.get("people"));
     const env = params.get("environment") as Environment | null;
+    const mode = params.get("discoveryMode") as DiscoveryMode | null;
 
-    if (areaCode || companion || people || env) {
+    if (areaCode || companion || people || env || mode) {
       const initialFilters: Filters = {
         areaCode: areaCode || "1",
         companion: companion && ["couple", "friends", "family", "solo"].includes(companion) ? companion : "friends",
         people: people && people >= 1 && people <= 6 ? people : 4,
         environment: env && ["all", "indoor", "outdoor"].includes(env) ? env : "all",
+        discoveryMode: mode && ["popular", "hidden"].includes(mode) ? mode : "popular",
       };
       setFilters(initialFilters);
       searched.current = true;
@@ -94,6 +97,7 @@ export default function Home() {
         url.searchParams.set("companion", filters.companion);
         url.searchParams.set("people", String(filters.people));
         url.searchParams.set("environment", filters.environment || "all");
+        url.searchParams.set("discoveryMode", filters.discoveryMode || "popular");
         window.history.replaceState({}, "", url.toString());
       }
     }
@@ -107,7 +111,7 @@ export default function Home() {
   // 결과 공유하기 (모바일 공유 시트 또는 클립보드 복사)
   async function handleShare() {
     if (typeof window === "undefined") return;
-    const shareUrl = `${window.location.origin}${window.location.pathname}?areaCode=${filters.areaCode}&companion=${filters.companion}&people=${filters.people}&environment=${filters.environment || "all"}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?areaCode=${filters.areaCode}&companion=${filters.companion}&people=${filters.people}&environment=${filters.environment || "all"}&discoveryMode=${filters.discoveryMode || "popular"}`;
 
     if (navigator.share) {
       try {
@@ -160,10 +164,14 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-600/15 bg-teal-50/60 p-3.5 dark:border-teal-400/20 dark:bg-teal-950/40">
               <div>
                 <h2 className="font-bold text-teal-950 dark:text-teal-100">
-                  🎉 맞춤 추천 명소 {results.length}곳을 찾았어요
+                  {filters.discoveryMode === "hidden"
+                    ? `🌿 맞춤 숨은 로컬 명소 ${results.length}곳을 찾았어요`
+                    : `🎉 맞춤 추천 명소 ${results.length}곳을 찾았어요`}
                 </h2>
                 <p className="text-xs text-teal-800/80 dark:text-teal-300/80">
-                  동행과 함께 공유하고 여행 계획을 세워보세요!
+                  {filters.discoveryMode === "hidden"
+                    ? "인파를 피해 여유롭게 힐링할 수 있는 특별한 로컬 스팟을 둘러보세요!"
+                    : "동행과 함께 공유하고 여행 계획을 세워보세요!"}
                 </p>
               </div>
 

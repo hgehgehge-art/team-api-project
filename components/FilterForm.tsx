@@ -1,6 +1,6 @@
 "use client";
 
-import type { Companion, Environment, Filters } from "@/lib/types";
+import type { Companion, DiscoveryMode, Environment, Filters } from "@/lib/types";
 
 // /api/places가 지원하는 17개 시도 (TourAPI 기존 areaCode 기준)
 export const AREAS = [
@@ -36,6 +36,11 @@ const ENVIRONMENTS: { value: Environment; label: string }[] = [
   { value: "outdoor", label: "🍃 야외 중심" },
 ];
 
+const DISCOVERY_MODES: { value: DiscoveryMode; label: string; desc: string }[] = [
+  { value: "popular", label: "⭐ 대표 랜드마크", desc: "검증된 유명 관광지" },
+  { value: "hidden", label: "🌿 숨은 명소 발굴", desc: "한적한 로컬 히든스팟" },
+];
+
 interface Props {
   filters: Filters;
   loading: boolean;
@@ -48,6 +53,7 @@ export default function FilterForm({ filters, loading, onChange, onSubmit }: Pro
   const isCouple = filters.companion === "couple";
   const isFixedPeople = isSolo || isCouple;
   const currentEnv = filters.environment || "all";
+  const currentMode = filters.discoveryMode || "popular";
 
   return (
     <form
@@ -145,6 +151,39 @@ export default function FilterForm({ filters, loading, onChange, onSubmit }: Pro
                 onClick={() => onChange({ ...filters, environment: env.value })}
               >
                 {env.label}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      {/* 탐색 스타일 (대표 랜드마크 vs 숨은 명소 발굴) */}
+      <fieldset>
+        <div className="mb-2 flex items-center justify-between">
+          <legend className="text-sm font-semibold">추천 탐색 스타일</legend>
+          <span className="text-[11px] font-medium text-teal-700 dark:text-teal-400">
+            {currentMode === "popular" ? "유명 명소 중심" : "로컬 히든스팟 중심"}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {DISCOVERY_MODES.map((mode) => {
+            const active = currentMode === mode.value;
+            return (
+              <button
+                key={mode.value}
+                type="button"
+                aria-pressed={active}
+                className={`flex flex-col items-center justify-center rounded-lg border px-2 py-2 text-center transition ${
+                  active
+                    ? "border-teal-700 bg-teal-700 text-white shadow-sm"
+                    : "border-black/15 hover:border-teal-700 dark:border-white/20"
+                }`}
+                onClick={() => onChange({ ...filters, discoveryMode: mode.value })}
+              >
+                <span className="text-xs font-semibold">{mode.label}</span>
+                <span className={`mt-0.5 text-[10px] ${active ? "text-teal-100" : "text-black/50 dark:text-white/50"}`}>
+                  {mode.desc}
+                </span>
               </button>
             );
           })}

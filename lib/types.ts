@@ -1,11 +1,13 @@
 export type Companion = 'couple' | 'friends' | 'family' | 'solo';
 export type Environment = 'all' | 'indoor' | 'outdoor';
+export type DiscoveryMode = 'popular' | 'hidden'; // ⭐ 대표 랜드마크 vs 🌿 숨은 로컬 명소
 
 export interface Filters {
   areaCode: string;        // 예: 서울 '1' (TourAPI 실제 지역 코드)
   companion: Companion;
   people: number;          // 1 ~ 6명
   environment?: Environment; // 날씨/공간 맞춤: 전체('all') | 실내 중심('indoor') | 야외 중심('outdoor')
+  discoveryMode?: DiscoveryMode; // 탐색 스타일: 대표 랜드마크('popular') | 숨은 명소('hidden')
 }
 
 export interface Place {

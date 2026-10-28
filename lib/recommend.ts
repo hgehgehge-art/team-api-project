@@ -60,6 +60,17 @@ const FAMOUS_TOURIST_KEYWORDS = [
   '전통시장', '야시장', '먹거리골목', '카페거리', '문화의거리', '특화거리',
 ];
 
+/**
+ * 붐비지 않고 여유롭게 즐길 수 있는 로컬 숨은 명소/쉼터 키워드
+ * ('hidden' 탐색 모드 시 +25점 가산점 부여)
+ */
+const HIDDEN_GEM_KEYWORDS = [
+  '길', '둘레길', '산책로', '숲길', '골목', '쉼터', '소공원', '생태공원', '근린공원',
+  '고택', '향교', '벽화마을', '예술마을', '공방', '아틀리에', '갤러리', '문학관',
+  '북카페', '작은도서관', '사찰', '암자', '약수터', '전망쉼터', '노을', '철새',
+  '야생화', '생태숲', '자연마당', '치유의숲', '휴양공간', '생태학습',
+];
+
 /** 동행 유형별 콘텐츠 유형 기본 선호 점수와 추천 문구 */
 const COMPANION_RULES: Record<
   Companion,
@@ -196,7 +207,7 @@ function formatPeopleReason(contentTypeId: string, people: number, matchedLabel:
  * 동행 관계, 인원수, 콘텐츠 유형, 날씨/환경에 따른 휴리스틱 점수 및 사유 산출
  */
 function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
-  const { companion, people, environment = 'all' } = filters;
+  const { companion, people, environment = 'all', discoveryMode = 'popular' } = filters;
   const { contentTypeId, title } = place;
   const rule = COMPANION_RULES[companion] ?? COMPANION_RULES.solo;
   const typeRule = rule.types[contentTypeId] ?? rule.fallback;
@@ -238,10 +249,33 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
   const isNonTourist = NON_TOURIST_KEYWORDS.some((k) => title.includes(k));
   const touristFilterPenalty = isNonTourist ? -50 : 0;
 
-  // ★ 2. 대표 관광 명소 & 랜드마크 인증 가산점 (+20점)
+  // ★ 2. 탐색 모드별 가감점: 대표 랜드마크('popular') vs 로컬 숨은 명소('hidden')
   const isFamousTourist = !isNonTourist && FAMOUS_TOURIST_KEYWORDS.some((k) => title.includes(k));
-  const famousTouristBonus = isFamousTourist ? 20 : 0;
-  const landmarkTag = isFamousTourist ? '⭐ [대표 명소] ' : '';
+  const isHiddenGemKeyword = !isNonTourist && HIDDEN_GEM_KEYWORDS.some((k) => title.includes(k));
+
+  let discoveryBonus = 0;
+  let discoveryTag = '';
+
+  if (discoveryMode === 'hidden') {
+    if (isFamousTourist) {
+      // 뻔하고 인파가 몰리는 대형 랜드마크는 순위를 낮춤 (-20점)
+      discoveryBonus = -20;
+    } else if (isHiddenGemKeyword) {
+      // 한적한 둘레길, 갤러리, 고택 등 로컬 숨은 명소 강력 우대 (+25점)
+      discoveryBonus = 25;
+      discoveryTag = '🌿 [숨은 명소] ';
+    } else {
+      // 랜드마크가 아닌 로컬 전시/휴양 공간 기본 우대 (+15점)
+      discoveryBonus = 15;
+      discoveryTag = '🔍 [로컬 스팟] ';
+    }
+  } else {
+    // 기본 모드: 대중적으로 검증된 대표 랜드마크 우선 (+20점)
+    if (isFamousTourist) {
+      discoveryBonus = 20;
+      discoveryTag = '⭐ [대표 명소] ';
+    }
+  }
 
   const rawScore =
     baseScore +
@@ -252,19 +286,19 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
     peopleKeywordBonus +
     envBonus +
     touristFilterPenalty +
-    famousTouristBonus;
+    discoveryBonus;
 
   const score = Math.max(10, Math.min(100, rawScore));
   const peopleReasonText = formatPeopleReason(contentTypeId, people, matchedLabel);
   const reason = isNonTourist
     ? `지역 공공·복지 편의 시설입니다. ${typeRule.reason}`
-    : `${landmarkTag}${envPrefix}${peopleReasonText} ${typeRule.reason}`;
+    : `${discoveryTag}${envPrefix}${peopleReasonText} ${typeRule.reason}`;
 
   return { score, reason };
 }
 
 function tieBreaker(id: string, filters: Filters): number {
-  const seed = `${id}|${filters.companion}|${filters.people}|${filters.environment || 'all'}`;
+  const seed = `${id}|${filters.companion}|${filters.people}|${filters.environment || 'all'}|${filters.discoveryMode || 'popular'}`;
   let hash = 2166136261;
   for (let i = 0; i < seed.length; i++) {
     hash ^= seed.charCodeAt(i);
