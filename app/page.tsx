@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import FilterForm from "@/components/FilterForm";
 import PlaceCard from "@/components/PlaceCard";
+import DataInsights from "@/components/DataInsights";
 import { recommendPlaces } from "@/lib/recommend";
 import type { Companion, Environment, Filters, Place, RecommendedPlace } from "@/lib/types";
 
@@ -23,6 +24,7 @@ export default function Home() {
   });
   const [status, setStatus] = useState<Status>("idle");
   const [results, setResults] = useState<RecommendedPlace[]>([]);
+  const [rawPlaces, setRawPlaces] = useState<Place[]>([]);
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -45,11 +47,13 @@ export default function Home() {
         cache.current.set(f.areaCode, data);
       }
       if (id !== requestId.current) return; // 더 최근 요청이 있으면 무시
+      setRawPlaces(data.places);
       setResults(recommendPlaces(data.places, f));
       setSource(data.source ?? null);
       setStatus("done");
     } catch (e) {
       if (id !== requestId.current) return;
+      setRawPlaces([]);
       setResults([]);
       setError(e instanceof Error ? e.message : "알 수 없는 오류");
       setStatus("error");
@@ -170,6 +174,13 @@ export default function Home() {
                 <span>{copied ? "✔ 링크 복사 완료!" : "🔗 이 추천 결과 공유하기"}</span>
               </button>
             </div>
+
+            {/* 📊 2번 제안: 지역 관광 공공데이터 분석 대시보드 브리핑 바 */}
+            <DataInsights
+              filters={filters}
+              allPlaces={rawPlaces}
+              recommendedPlaces={results}
+            />
 
             {/* 1위는 크게, 2·3위는 나란히, 4위부터는 목록형 */}
             <div className="grid gap-4 sm:grid-cols-2">
