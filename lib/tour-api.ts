@@ -116,7 +116,7 @@ async function callAreaBasedList(
     _type: 'json',
     numOfRows: String(numOfRows),
     pageNo: '1',
-    arrange: 'O', // 대표 이미지가 있는 항목만, 제목순
+    arrange: 'Q', // 대표 이미지가 있는 항목만, 최근 수정순 (제목순이면 '가~강'만 나온다)
     contentTypeId,
     lDongRegnCd: ldong,
   });
@@ -180,7 +180,7 @@ async function callAreaBasedList(
  * 지역(팀 계약의 areaCode)으로 추천 대상 관광지 목록을 가져온다.
  * 콘텐츠 유형별로 나눠 요청해 관광지만 몰리지 않게 섞는다.
  */
-export async function fetchPlacesByArea(areaCode: string, perType = 15): Promise<Place[]> {
+export async function fetchPlacesByArea(areaCode: string, perType = 30): Promise<Place[]> {
   const area = AREA_TO_LDONG[areaCode];
   if (!area) {
     throw new TourApiError(`지원하지 않는 areaCode입니다: ${areaCode}`, 400);

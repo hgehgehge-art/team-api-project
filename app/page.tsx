@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import FilterForm from "@/components/FilterForm";
 import PlaceCard from "@/components/PlaceCard";
 import { recommendPlaces } from "@/lib/recommend";
@@ -21,21 +21,43 @@ export default function Home() {
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit() {
-    setStatus("loading");
+  // 지역별 관광지 목록 캐시: 동행·인원만 바꾸면 다시 요청하지 않고 즉시 재추천
+  const cache = useRef(new Map<string, PlacesResponse>());
+  const searched = useRef(false);
+  const requestId = useRef(0);
+
+  const runRecommend = useCallback(async (f: Filters) => {
+    const id = ++requestId.current;
     setError(null);
     try {
-      const res = await fetch(`/api/places?areaCode=${encodeURIComponent(filters.areaCode)}`);
-      const data: PlacesResponse = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error ?? `요청 실패 (${res.status})`);
-      setResults(recommendPlaces(data.places, filters));
+      let data = cache.current.get(f.areaCode);
+      if (!data) {
+        setStatus("loading");
+        const res = await fetch(`/api/places?areaCode=${encodeURIComponent(f.areaCode)}`);
+        data = (await res.json()) as PlacesResponse;
+        if (!res.ok || data.error) throw new Error(data.error ?? `요청 실패 (${res.status})`);
+        cache.current.set(f.areaCode, data);
+      }
+      if (id !== requestId.current) return; // 더 최근 요청이 있으면 무시
+      setResults(recommendPlaces(data.places, f));
       setSource(data.source ?? null);
       setStatus("done");
     } catch (e) {
+      if (id !== requestId.current) return;
       setResults([]);
       setError(e instanceof Error ? e.message : "알 수 없는 오류");
       setStatus("error");
     }
+  }, []);
+
+  // 한 번 추천받은 뒤에는 조건을 바꾸면 바로 다시 추천
+  useEffect(() => {
+    if (searched.current) runRecommend(filters);
+  }, [filters, runRecommend]);
+
+  function handleSubmit() {
+    searched.current = true;
+    runRecommend(filters);
   }
 
   return (
@@ -62,11 +84,20 @@ export default function Home() {
             {source && source !== "tourapi" && (
               <Notice tone="warn">실제 API 대신 데모 데이터로 보여 주고 있습니다.</Notice>
             )}
+            {/* 1위는 크게, 2·3위는 나란히, 4위부터는 목록형 */}
             <div className="grid gap-4 sm:grid-cols-2">
-              {results.map((p, i) => (
+              {results.slice(0, 3).map((p, i) => (
                 <PlaceCard key={p.id} place={p} rank={i + 1} />
               ))}
             </div>
+            {results.length > 3 && (
+              <div className="grid gap-2">
+                <h2 className="text-sm font-semibold text-black/60 dark:text-white/60">그 밖의 추천</h2>
+                {results.slice(3).map((p, i) => (
+                  <PlaceCard key={p.id} place={p} rank={i + 4} />
+                ))}
+              </div>
+            )}
             <p className="text-xs text-black/50 dark:text-white/50">
               추천은 서비스 자체 규칙에 따른 것이며, 실제 혼잡도나 단체 수용 가능 여부를 보장하지 않습니다.
             </p>
