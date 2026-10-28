@@ -20,7 +20,7 @@ interface ScoreDetail {
 }
 
 /**
- * 관광 명소로 부적합한 로컬 행정/복지 시설 감점 키워드
+ * 관광 명소로 부적합한 로컬 행정/복지 시설 감점 키워드 (-50점 페널티)
  * (공공데이터상 문화시설(14)로 등록되어 있으나, 실제 여행객이 방문하는 관광지가 아님)
  */
 const NON_TOURIST_KEYWORDS = [
@@ -42,6 +42,22 @@ const NON_TOURIST_KEYWORDS = [
   '자원봉사',
   '보건소',
   '유스호스텔',
+];
+
+/**
+ * 대중적으로 검증된 대표 관광 명소 및 랜드마크 키워드 (+20점 가산점)
+ */
+const FAMOUS_TOURIST_KEYWORDS = [
+  // 국가/지역 대표 문화·역사 랜드마크
+  '궁', '경복궁', '창덕궁', '덕수궁', '창경궁', '한옥마을', '민속촌', '유적지', '성곽', '산성', '사적', '서원',
+  // 대표 국·공립 박물관, 미술관, 아트센터
+  '국립', '시립', '도립', '박물관', '미술관', '아트센터', '예술의전당', '전시관', '역사관', '기념관',
+  // 랜드마크 전망대, 타워, 자연 절경
+  '타워', '전망대', '케이블카', '유람선', '스카이워크', '해수욕장', '해변', '폭포', '계곡', '수목원', '식물원', '자연휴양림', '국립공원', '둘레길',
+  // 대형 테마파크, 액티비티 랜드마크
+  '월드', '랜드', '어드벤처', '테마파크', '아쿠아리움', '워터파크', '레일바이크', '루지', '짚라인', '아이스링크',
+  // 유명 전통시장 및 먹거리 골목
+  '전통시장', '야시장', '먹거리골목', '카페거리', '문화의거리', '특화거리',
 ];
 
 /** 동행 유형별 콘텐츠 유형 기본 선호 점수와 추천 문구 */
@@ -121,7 +137,6 @@ const TITLE_KEYWORDS: Record<Companion, string[]> = {
 /** 실내/야외 판별 헬퍼 */
 function isIndoorPlace(place: Place): boolean {
   if (place.contentTypeId === '14') {
-    // 비관광 공공복지시설은 실내 보너스에서 제외
     if (NON_TOURIST_KEYWORDS.some((k) => place.title.includes(k))) return false;
     return true;
   }
@@ -186,7 +201,7 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
   const rule = COMPANION_RULES[companion] ?? COMPANION_RULES.solo;
   const typeRule = rule.types[contentTypeId] ?? rule.fallback;
 
-  const baseScore = 25;
+  const baseScore = 20;
 
   // 정보 완성도 가산점 (사진 +10점, 주소 +5점)
   let qualityBonus = 0;
@@ -197,7 +212,7 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
   const groupFitBonus = getPeopleFitBonus(contentTypeId, people);
   const { bonus: peopleKeywordBonus, matchedLabel } = getPeopleKeywordBonus(title, people);
 
-  // ★ 날씨/환경(실내 vs 야외) 가감점 (+35점 / -25점)
+  // 날씨/환경(실내 vs 야외) 가감점 (+35점 / -25점)
   let envBonus = 0;
   let envPrefix = '';
   const isIndoor = isIndoorPlace(place);
@@ -219,10 +234,14 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
     }
   }
 
-  // ★ 비관광 공공/복지/체육 시설 강력 감점 (-50점)
-  // 청소년센터, 수련관, 복지관 등은 관광명소가 아니므로 순위 최하위로 강등
+  // ★ 1. 비관광 공공/복지/체육 시설 강력 감점 (-50점)
   const isNonTourist = NON_TOURIST_KEYWORDS.some((k) => title.includes(k));
   const touristFilterPenalty = isNonTourist ? -50 : 0;
+
+  // ★ 2. 대표 관광 명소 & 랜드마크 인증 가산점 (+20점)
+  const isFamousTourist = !isNonTourist && FAMOUS_TOURIST_KEYWORDS.some((k) => title.includes(k));
+  const famousTouristBonus = isFamousTourist ? 20 : 0;
+  const landmarkTag = isFamousTourist ? '⭐ [대표 명소] ' : '';
 
   const rawScore =
     baseScore +
@@ -232,13 +251,14 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
     groupFitBonus +
     peopleKeywordBonus +
     envBonus +
-    touristFilterPenalty;
+    touristFilterPenalty +
+    famousTouristBonus;
 
   const score = Math.max(10, Math.min(100, rawScore));
   const peopleReasonText = formatPeopleReason(contentTypeId, people, matchedLabel);
   const reason = isNonTourist
     ? `지역 공공·복지 편의 시설입니다. ${typeRule.reason}`
-    : `${envPrefix}${peopleReasonText} ${typeRule.reason}`;
+    : `${landmarkTag}${envPrefix}${peopleReasonText} ${typeRule.reason}`;
 
   return { score, reason };
 }
