@@ -1,6 +1,6 @@
 "use client";
 
-import type { Companion, Filters } from "@/lib/types";
+import type { Companion, Environment, Filters } from "@/lib/types";
 
 // /api/places가 지원하는 17개 시도 (TourAPI 기존 areaCode 기준)
 export const AREAS = [
@@ -30,6 +30,12 @@ const COMPANIONS: { value: Companion; label: string }[] = [
   { value: "solo", label: "혼자" },
 ];
 
+const ENVIRONMENTS: { value: Environment; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "indoor", label: "🏛️ 실내 중심" },
+  { value: "outdoor", label: "🍃 야외 중심" },
+];
+
 interface Props {
   filters: Filters;
   loading: boolean;
@@ -41,6 +47,7 @@ export default function FilterForm({ filters, loading, onChange, onSubmit }: Pro
   const isSolo = filters.companion === "solo";
   const isCouple = filters.companion === "couple";
   const isFixedPeople = isSolo || isCouple;
+  const currentEnv = filters.environment || "all";
 
   return (
     <form
@@ -117,6 +124,31 @@ export default function FilterForm({ filters, loading, onChange, onSubmit }: Pro
         />
         {isSolo && <p className="mt-1 text-xs text-black/50 dark:text-white/50">혼자 선택 시 1명으로 고정됩니다.</p>}
         {isCouple && <p className="mt-1 text-xs text-black/50 dark:text-white/50">연인 선택 시 2명으로 고정됩니다.</p>}
+      </fieldset>
+
+      {/* 날씨/공간 분위기 맞춤 필터 */}
+      <fieldset>
+        <legend className="mb-2 text-sm font-semibold">날씨 / 공간 맞춤</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {ENVIRONMENTS.map((env) => {
+            const active = currentEnv === env.value;
+            return (
+              <button
+                key={env.value}
+                type="button"
+                aria-pressed={active}
+                className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
+                  active
+                    ? "border-teal-700 bg-teal-700 text-white"
+                    : "border-black/15 hover:border-teal-700 dark:border-white/20"
+                }`}
+                onClick={() => onChange({ ...filters, environment: env.value })}
+              >
+                {env.label}
+              </button>
+            );
+          })}
+        </div>
       </fieldset>
 
       <button

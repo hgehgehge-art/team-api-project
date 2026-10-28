@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import FilterForm from "@/components/FilterForm";
 import PlaceCard from "@/components/PlaceCard";
 import { recommendPlaces } from "@/lib/recommend";
-import type { Companion, Filters, Place, RecommendedPlace } from "@/lib/types";
+import type { Companion, Environment, Filters, Place, RecommendedPlace } from "@/lib/types";
 
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -15,14 +15,19 @@ interface PlacesResponse {
 }
 
 export default function Home() {
-  const [filters, setFilters] = useState<Filters>({ areaCode: "1", companion: "friends", people: 4 });
+  const [filters, setFilters] = useState<Filters>({
+    areaCode: "1",
+    companion: "friends",
+    people: 4,
+    environment: "all",
+  });
   const [status, setStatus] = useState<Status>("idle");
   const [results, setResults] = useState<RecommendedPlace[]>([]);
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // 지역별 관광지 목록 캐시: 동행·인원만 바꾸면 다시 요청하지 않고 즉시 재추천
+  // 지역별 관광지 목록 캐시: 동행·인원·환경만 바꾸면 다시 요청하지 않고 즉시 재추천
   const cache = useRef(new Map<string, PlacesResponse>());
   const searched = useRef(false);
   const requestId = useRef(0);
@@ -58,12 +63,14 @@ export default function Home() {
     const areaCode = params.get("areaCode");
     const companion = params.get("companion") as Companion | null;
     const people = Number(params.get("people"));
+    const env = params.get("environment") as Environment | null;
 
-    if (areaCode || companion || people) {
+    if (areaCode || companion || people || env) {
       const initialFilters: Filters = {
         areaCode: areaCode || "1",
         companion: companion && ["couple", "friends", "family", "solo"].includes(companion) ? companion : "friends",
         people: people && people >= 1 && people <= 6 ? people : 4,
+        environment: env && ["all", "indoor", "outdoor"].includes(env) ? env : "all",
       };
       setFilters(initialFilters);
       searched.current = true;
@@ -81,6 +88,7 @@ export default function Home() {
         url.searchParams.set("areaCode", filters.areaCode);
         url.searchParams.set("companion", filters.companion);
         url.searchParams.set("people", String(filters.people));
+        url.searchParams.set("environment", filters.environment || "all");
         window.history.replaceState({}, "", url.toString());
       }
     }
@@ -94,13 +102,13 @@ export default function Home() {
   // 결과 공유하기 (모바일 공유 시트 또는 클립보드 복사)
   async function handleShare() {
     if (typeof window === "undefined") return;
-    const shareUrl = `${window.location.origin}${window.location.pathname}?areaCode=${filters.areaCode}&companion=${filters.companion}&people=${filters.people}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?areaCode=${filters.areaCode}&companion=${filters.companion}&people=${filters.people}&environment=${filters.environment || "all"}`;
 
     if (navigator.share) {
       try {
         await navigator.share({
           title: "동행 맞춤 관광 명소 추천",
-          text: `우리가 함께 가기 딱 좋은 여행지 추천 결과를 확인해봐!`,
+          text: `우리가 함께 가기 딱 좋은 맞춤 여행지 추천 결과를 확인해봐!`,
           url: shareUrl,
         });
         return;
@@ -123,7 +131,7 @@ export default function Home() {
       <header className="md:col-span-2">
         <p className="text-sm font-semibold text-teal-700 dark:text-teal-400">한국관광공사 TourAPI</p>
         <h1 className="mt-1 text-3xl font-bold">누구와 가나요?</h1>
-        <p className="mt-2 text-black/60 dark:text-white/60">지역과 동행, 인원을 고르면 함께 가기 좋은 관광지를 추천합니다.</p>
+        <p className="mt-2 text-black/60 dark:text-white/60">지역과 동행, 인원, 날씨를 고르면 함께 가기 좋은 관광지를 추천합니다.</p>
       </header>
 
       <aside className="md:sticky md:top-6 md:self-start">
