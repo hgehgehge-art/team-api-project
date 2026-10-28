@@ -25,6 +25,8 @@ interface Props {
 
 export default function FilterForm({ filters, loading, onChange, onSubmit }: Props) {
   const isSolo = filters.companion === "solo";
+  const isCouple = filters.companion === "couple";
+  const isFixedPeople = isSolo || isCouple;
 
   return (
     <form
@@ -64,14 +66,22 @@ export default function FilterForm({ filters, loading, onChange, onSubmit }: Pro
                     ? "border-teal-700 bg-teal-700 text-white"
                     : "border-black/15 hover:border-teal-700 dark:border-white/20"
                 }`}
-                onClick={() =>
+                onClick={() => {
+                  let nextPeople = filters.people;
+                  if (c.value === "solo") {
+                    nextPeople = 1;
+                  } else if (c.value === "couple") {
+                    nextPeople = 2;
+                  } else {
+                    nextPeople = Math.max(filters.people, 2);
+                  }
+
                   onChange({
                     ...filters,
                     companion: c.value,
-                    // 혼자는 1명 고정, 다른 동행은 최소 2명
-                    people: c.value === "solo" ? 1 : Math.max(filters.people, 2),
-                  })
-                }
+                    people: nextPeople,
+                  });
+                }}
               >
                 {c.label}
               </button>
@@ -87,11 +97,12 @@ export default function FilterForm({ filters, loading, onChange, onSubmit }: Pro
           min={isSolo ? 1 : 2}
           max={6}
           value={filters.people}
-          disabled={isSolo}
-          className="w-full accent-teal-700"
+          disabled={isFixedPeople}
+          className="w-full accent-teal-700 disabled:opacity-50"
           onChange={(e) => onChange({ ...filters, people: Number(e.target.value) })}
         />
         {isSolo && <p className="mt-1 text-xs text-black/50 dark:text-white/50">혼자 선택 시 1명으로 고정됩니다.</p>}
+        {isCouple && <p className="mt-1 text-xs text-black/50 dark:text-white/50">연인 선택 시 2명으로 고정됩니다.</p>}
       </fieldset>
 
       <button
