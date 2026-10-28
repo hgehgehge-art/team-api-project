@@ -25,6 +25,53 @@ const PODIUM = {
   },
 } as const;
 
+/** 장소의 특성(실내/야외/체험 등)과 권장 소요 시간을 도출하는 헬퍼 함수 */
+function getPlaceBadges(place: RecommendedPlace) {
+  const { title, contentTypeId } = place;
+
+  let duration = "⏱️ 약 1~2시간";
+  let env = "🍃 야외 힐링";
+
+  if (
+    contentTypeId === "28" ||
+    title.includes("테마파크") ||
+    title.includes("어드벤처") ||
+    title.includes("스키") ||
+    title.includes("대공원")
+  ) {
+    duration = "⏱️ 반나절 (3~4시간+)";
+    env = "🎢 액티비티·체험";
+  } else if (
+    contentTypeId === "14" ||
+    title.includes("미술관") ||
+    title.includes("박물관") ||
+    title.includes("전시") ||
+    title.includes("갤러리")
+  ) {
+    duration = "⏱️ 약 1.5~2시간";
+    env = "🏛️ 실내 관람";
+  } else if (
+    contentTypeId === "39" ||
+    title.includes("시장") ||
+    title.includes("골목") ||
+    title.includes("식당")
+  ) {
+    duration = "⏱️ 약 1시간";
+    env = "🍽️ 식도락·먹거리";
+  } else if (
+    title.includes("둘레길") ||
+    title.includes("산책") ||
+    title.includes("숲") ||
+    title.includes("정원") ||
+    title.includes("공원")
+  ) {
+    duration = "⏱️ 약 1~2시간";
+    env = "🍃 산책·자연";
+  }
+
+  return { duration, env };
+}
+
 function Thumbnail({ place, className }: { place: RecommendedPlace; className: string }) {
   return (
     <div className={`relative bg-teal-50 dark:bg-teal-950 ${className}`}>
@@ -54,6 +101,7 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
 
 export default function PlaceCard({ place, rank }: { place: RecommendedPlace; rank: number }) {
   const [showMap, setShowMap] = useState(false);
+  const badges = getPlaceBadges(place);
 
   // 구글맵 쿼리 및 길찾기 URL 생성 (API 키 불필요)
   const hasCoord = place.latitude !== null && place.longitude !== null;
@@ -79,7 +127,10 @@ export default function PlaceCard({ place, rank }: { place: RecommendedPlace; ra
           </span>
           <Thumbnail place={place} className="h-16 w-20 shrink-0 overflow-hidden rounded-lg" />
           <div className="grid min-w-0 flex-1 gap-1">
-            <h3 className="truncate font-semibold">{place.title}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="truncate font-semibold text-sm">{place.title}</h3>
+              <span className="shrink-0 text-[11px] text-black/50 dark:text-white/50">{badges.duration}</span>
+            </div>
             <p className="line-clamp-1 text-xs text-teal-800 dark:text-teal-300">{place.reason}</p>
             <ScoreBar score={place.score} color="bg-teal-600" />
           </div>
@@ -145,7 +196,20 @@ export default function PlaceCard({ place, rank }: { place: RecommendedPlace; ra
       </div>
 
       <div className={`grid gap-2.5 ${isFirst ? "p-5" : "p-4"}`}>
-        <h3 className={`font-bold leading-snug ${isFirst ? "text-2xl" : "text-lg"}`}>{place.title}</h3>
+        <div>
+          <h3 className={`font-bold leading-snug ${isFirst ? "text-2xl" : "text-lg"}`}>{place.title}</h3>
+          
+          {/* 장소 특성 및 권장 체류 시간 뱃지 */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800 ring-1 ring-inset ring-teal-600/20 dark:bg-teal-950 dark:text-teal-300">
+              {badges.env}
+            </span>
+            <span className="inline-flex items-center rounded-md bg-black/5 px-2 py-0.5 text-xs font-medium text-black/70 dark:bg-white/10 dark:text-white/70">
+              {badges.duration}
+            </span>
+          </div>
+        </div>
+
         <ScoreBar score={place.score} color={style.bar} />
         <p className={`text-teal-800 dark:text-teal-300 ${isFirst ? "text-base" : "text-sm"}`}>{place.reason}</p>
         {place.address && <p className="text-xs text-black/55 dark:text-white/55">📍 {place.address}</p>}
