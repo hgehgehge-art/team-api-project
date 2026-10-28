@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import FilterForm from "@/components/FilterForm";
 import PlaceCard from "@/components/PlaceCard";
 import DataInsights from "@/components/DataInsights";
+import DayCoursePlanner from "@/components/DayCoursePlanner";
 import { recommendPlaces } from "@/lib/recommend";
 import type { Companion, Environment, Filters, Place, RecommendedPlace } from "@/lib/types";
 
@@ -175,11 +176,17 @@ export default function Home() {
               </button>
             </div>
 
-            {/* 📊 2번 제안: 지역 관광 공공데이터 분석 대시보드 브리핑 바 */}
+            {/* 📊 지역 관광 공공데이터 분석 대시보드 브리핑 바 */}
             <DataInsights
               filters={filters}
               allPlaces={rawPlaces}
               recommendedPlaces={results}
+            />
+
+            {/* 🎒 1일 완성 당일치기 코스 자동 플래너 (초격차 킬러 솔루션) */}
+            <DayCoursePlanner
+              filters={filters}
+              places={results}
             />
 
             {/* 1위는 크게, 2·3위는 나란히, 4위부터는 목록형 */}
