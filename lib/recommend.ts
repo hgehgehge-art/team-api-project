@@ -19,6 +19,31 @@ interface ScoreDetail {
   reason: string;
 }
 
+/**
+ * 관광 명소로 부적합한 로컬 행정/복지 시설 감점 키워드
+ * (공공데이터상 문화시설(14)로 등록되어 있으나, 실제 여행객이 방문하는 관광지가 아님)
+ */
+const NON_TOURIST_KEYWORDS = [
+  '청소년',
+  '수련관',
+  '수련원',
+  '문화의집',
+  '복지관',
+  '주민센터',
+  '행정복지',
+  '구민회관',
+  '시민회관',
+  '체육센터',
+  '국민체육',
+  '구민체육',
+  '학습관',
+  '평생학습',
+  '여성인력',
+  '자원봉사',
+  '보건소',
+  '유스호스텔',
+];
+
 /** 동행 유형별 콘텐츠 유형 기본 선호 점수와 추천 문구 */
 const COMPANION_RULES: Record<
   Companion,
@@ -95,8 +120,12 @@ const TITLE_KEYWORDS: Record<Companion, string[]> = {
 
 /** 실내/야외 판별 헬퍼 */
 function isIndoorPlace(place: Place): boolean {
-  if (place.contentTypeId === '14') return true;
-  const indoorWords = ['미술관', '박물관', '전시', '갤러리', '과학관', '도서관', '기념관', '실내', '아쿠아리움', '센터'];
+  if (place.contentTypeId === '14') {
+    // 비관광 공공복지시설은 실내 보너스에서 제외
+    if (NON_TOURIST_KEYWORDS.some((k) => place.title.includes(k))) return false;
+    return true;
+  }
+  const indoorWords = ['미술관', '박물관', '전시', '갤러리', '과학관', '도서관', '기념관', '실내', '아쿠아리움'];
   return indoorWords.some((w) => place.title.includes(w));
 }
 
@@ -190,6 +219,11 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
     }
   }
 
+  // ★ 비관광 공공/복지/체육 시설 강력 감점 (-50점)
+  // 청소년센터, 수련관, 복지관 등은 관광명소가 아니므로 순위 최하위로 강등
+  const isNonTourist = NON_TOURIST_KEYWORDS.some((k) => title.includes(k));
+  const touristFilterPenalty = isNonTourist ? -50 : 0;
+
   const rawScore =
     baseScore +
     typeRule.bonus +
@@ -197,11 +231,14 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
     keywordBonus +
     groupFitBonus +
     peopleKeywordBonus +
-    envBonus;
+    envBonus +
+    touristFilterPenalty;
 
   const score = Math.max(10, Math.min(100, rawScore));
   const peopleReasonText = formatPeopleReason(contentTypeId, people, matchedLabel);
-  const reason = `${envPrefix}${peopleReasonText} ${typeRule.reason}`;
+  const reason = isNonTourist
+    ? `지역 공공·복지 편의 시설입니다. ${typeRule.reason}`
+    : `${envPrefix}${peopleReasonText} ${typeRule.reason}`;
 
   return { score, reason };
 }
@@ -218,11 +255,11 @@ function tieBreaker(id: string, filters: Filters): number {
 
 function getMaxQuotaForType(contentTypeId: string, people: number, environment: Environment = 'all'): number {
   if (environment === 'indoor') {
-    if (contentTypeId === '14') return 6; // 실내 모드일 때는 문화시설 제한 해제
+    if (contentTypeId === '14') return 6;
     return 2;
   }
   if (environment === 'outdoor') {
-    if (contentTypeId === '12' || contentTypeId === '28') return 6; // 야외 모드일 때는 야외 제한 해제
+    if (contentTypeId === '12' || contentTypeId === '28') return 6;
     return 1;
   }
 
