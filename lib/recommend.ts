@@ -24,7 +24,7 @@ function calculateScoreAndReason(place: Place, filters: Filters): ScoreDetail {
   const { companion, people } = filters;
   const { contentTypeId, title } = place;
 
-  let baseScore = 50; // 기본 점수
+  const baseScore = 50; // 기본 점수
   let typeBonus = 0;
   let companionReason = '';
 
