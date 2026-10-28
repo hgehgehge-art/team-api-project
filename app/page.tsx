@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import FilterForm from "@/components/FilterForm";
 import PlaceCard from "@/components/PlaceCard";
 import { recommendPlaces } from "@/lib/recommend";
-import type { Filters, Place, RecommendedPlace } from "@/lib/types";
+import type { Companion, Filters, Place, RecommendedPlace } from "@/lib/types";
 
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -20,6 +20,7 @@ export default function Home() {
   const [results, setResults] = useState<RecommendedPlace[]>([]);
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // 지역별 관광지 목록 캐시: 동행·인원만 바꾸면 다시 요청하지 않고 즉시 재추천
   const cache = useRef(new Map<string, PlacesResponse>());
@@ -50,14 +51,71 @@ export default function Home() {
     }
   }, []);
 
+  // 1. 초기 URL 파라미터가 있으면 자동 반영 및 추천 실행 (공유받은 링크로 진입 시)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const areaCode = params.get("areaCode");
+    const companion = params.get("companion") as Companion | null;
+    const people = Number(params.get("people"));
+
+    if (areaCode || companion || people) {
+      const initialFilters: Filters = {
+        areaCode: areaCode || "1",
+        companion: companion && ["couple", "friends", "family", "solo"].includes(companion) ? companion : "friends",
+        people: people && people >= 1 && people <= 6 ? people : 4,
+      };
+      setFilters(initialFilters);
+      searched.current = true;
+      runRecommend(initialFilters);
+    }
+  }, [runRecommend]);
+
   // 한 번 추천받은 뒤에는 조건을 바꾸면 바로 다시 추천
   useEffect(() => {
-    if (searched.current) runRecommend(filters);
+    if (searched.current) {
+      runRecommend(filters);
+      // 브라우저 URL 쿼리 파라미터 동기화 (페이지 새로고침 없이)
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("areaCode", filters.areaCode);
+        url.searchParams.set("companion", filters.companion);
+        url.searchParams.set("people", String(filters.people));
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
   }, [filters, runRecommend]);
 
   function handleSubmit() {
     searched.current = true;
     runRecommend(filters);
+  }
+
+  // 결과 공유하기 (모바일 공유 시트 또는 클립보드 복사)
+  async function handleShare() {
+    if (typeof window === "undefined") return;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?areaCode=${filters.areaCode}&companion=${filters.companion}&people=${filters.people}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "동행 맞춤 관광 명소 추천",
+          text: `우리가 함께 가기 딱 좋은 여행지 추천 결과를 확인해봐!`,
+          url: shareUrl,
+        });
+        return;
+      } catch {
+        // 사용자가 취소했거나 미지원 시 클립보드로 복사 진행
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      alert("링크를 복사하지 못했습니다. URL을 직접 복사해주세요.");
+    }
   }
 
   return (
@@ -84,12 +142,34 @@ export default function Home() {
             {source && source !== "tourapi" && (
               <Notice tone="warn">실제 API 대신 데모 데이터로 보여 주고 있습니다.</Notice>
             )}
+
+            {/* 결과 헤더 & 공유하기 버튼 바 */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-600/15 bg-teal-50/60 p-3.5 dark:border-teal-400/20 dark:bg-teal-950/40">
+              <div>
+                <h2 className="font-bold text-teal-950 dark:text-teal-100">
+                  🎉 맞춤 추천 명소 {results.length}곳을 찾았어요
+                </h2>
+                <p className="text-xs text-teal-800/80 dark:text-teal-300/80">
+                  동행과 함께 공유하고 여행 계획을 세워보세요!
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleShare}
+                className="flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-800 active:scale-95"
+              >
+                <span>{copied ? "✔ 링크 복사 완료!" : "🔗 이 추천 결과 공유하기"}</span>
+              </button>
+            </div>
+
             {/* 1위는 크게, 2·3위는 나란히, 4위부터는 목록형 */}
             <div className="grid gap-4 sm:grid-cols-2">
               {results.slice(0, 3).map((p, i) => (
                 <PlaceCard key={p.id} place={p} rank={i + 1} />
               ))}
             </div>
+
             {results.length > 3 && (
               <div className="grid gap-2">
                 <h2 className="text-sm font-semibold text-black/60 dark:text-white/60">그 밖의 추천</h2>
@@ -98,6 +178,7 @@ export default function Home() {
                 ))}
               </div>
             )}
+
             <p className="text-xs text-black/50 dark:text-white/50">
               추천은 서비스 자체 규칙에 따른 것이며, 실제 혼잡도나 단체 수용 가능 여부를 보장하지 않습니다.
             </p>
