@@ -2,10 +2,24 @@
 
 import type { Companion, Filters } from "@/lib/types";
 
+// /api/places가 지원하는 17개 시도 (TourAPI 기존 areaCode 기준)
 export const AREAS = [
   { code: "1", name: "서울" },
-  { code: "6", name: "부산" },
+  { code: "2", name: "인천" },
+  { code: "31", name: "경기" },
   { code: "32", name: "강원" },
+  { code: "33", name: "충북" },
+  { code: "34", name: "충남" },
+  { code: "3", name: "대전" },
+  { code: "8", name: "세종" },
+  { code: "37", name: "전북" },
+  { code: "38", name: "전남" },
+  { code: "5", name: "광주" },
+  { code: "35", name: "경북" },
+  { code: "36", name: "경남" },
+  { code: "4", name: "대구" },
+  { code: "7", name: "울산" },
+  { code: "6", name: "부산" },
   { code: "39", name: "제주" },
 ];
 
