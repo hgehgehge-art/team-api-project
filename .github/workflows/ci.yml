@@ -1,0 +1,31 @@
+name: CI
+
+# PR과 main 푸시마다 린트·빌드를 돌려, 병합 전에 Vercel 빌드 실패를 잡는다.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: 린트
+        run: npm run lint
+
+      # TOUR_API_KEY는 요청 시점에만 읽으므로 빌드에는 필요 없다
+      - name: 빌드
+        run: npm run build
